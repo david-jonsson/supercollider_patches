@@ -60,17 +60,18 @@ SynthDef(\Snare,
         triangle_pitch_start = 300,
         triangle_pitch_end = 160,
         triangle_pitch_slope = \linear,
-        triangle_filter_moddepth = 1,
-        triangle_filter_rq = 1,
+        filter_pitch_start = 300,
+        filter_pitch_end = 160,
+        filter_pitch_slope = \linear,
+        filter_moddepth = 1,
+        filter_rq = 1,
         noise_pitch_start = 300,
         noise_pitch_end = 160,
         noise_pitch_slope = -6,
-        noise_filter_moddepth = 1,
-        noise_filter_rq = 1,
         snap = 0.5;
-        // filter_rq = 1;
 
         var
+        filter_pitch_env,
         triangle_amp_env,
         triangle_pitch_env,
         noise_amp_env,
@@ -128,13 +129,27 @@ SynthDef(\Snare,
             iphase: 0,
             mul: triangle_amp_env * 1
         );
-        triangle = BLowPass.ar
+        signal = triangle + noise;
+
+        /*
+         * Filter
+         */
+        filter_pitch_env = EnvGen.kr
         (
-            in: triangle,
-            freq: triangle_pitch_env * triangle_filter_moddepth,
-            rq: triangle_filter_rq
+            Env
+            (
+                [filter_pitch_start, filter_pitch_end, filter_pitch_end],
+                [rel_time / 2 , rel_time],
+                filter_pitch_slope
+            ),
+            doneAction: Done.freeSelf
         );
-        signal = triangle + noise ;
+        signal = BLowPass.ar
+        (
+            in: signal,
+            freq: filter_pitch_env * filter_moddepth,
+            rq: filter_rq
+        );
         Out.ar(out, signal ! 2);
     }
 ).add();
@@ -241,6 +256,10 @@ SynthDef(\Toms,
         );
         triangle = triangle_hi + triangle_low;
         signal = triangle + noise;
+
+        /*
+         * Filter
+         */
         signal = BLowPass.ar
         (
             in: signal,
@@ -260,6 +279,7 @@ SynthDef(\Claves,
     {
         arg
         out = 0,
+        midinote,
         att_times =    #[0.01, 0.01, 0.01, 0.01, 0.01],
         rel_times =    #[0.20, 0.20, 0.20, 0.20, 0.20],
         amp_slopes =   #[\lin, \lin, \lin, \lin],
@@ -353,7 +373,7 @@ SynthDef(\Claves,
         );
         carrier = SawDPW.ar
         (
-            freq: pitch_envs[1] + mod1,
+            freq: pitch_envs[1] + mod1 - 50 + (10 * midinote),
             mul: amp_envs[1]
         );
         signal = carrier + noise;
@@ -397,17 +417,17 @@ SynthDef(\Claves,
 ~snare.stop();
 ~snare = Pbind(
     \instrument, \Snare,
-    \rel_time, 0.350,
+    \rel_time, 0.250,
     \triangle_pitch_start, 160,
-    \triangle_pitch_end, 60,
+    \triangle_pitch_end, 100,
     \triangle_pitch_slope, -1,
-    \triangle_filter_moddepth, 50,
-    \triangle_filter_rq, 0.8,
-    \noise_pitch_slope, \linear,
-    \noise_filgter_moddepth, 3,
-    \noise_filter_rq, 1,
-    \snap, 0.15,
-    \dur, Pseq([8], inf),
+    \filter_moddepth, 100,
+    \filter_rq, 1,
+    \filter_pitch_start, 160,
+    \filter_pitch_end, 160,
+    \filter_pitch_slope, \linear,
+    \snap, 0.20,
+    \dur, Pseq([15.50, 0.50], inf),
 ).play(quant: [1,0.75]);
 )
 
@@ -417,7 +437,7 @@ SynthDef(\Claves,
     \instrument, \Toms,
     \rel_time, 0.300,
     \triangle_pitch_start, 35,
-    \triangle_pitch_end, 25,
+    \triangle_pitch_end, 30,
     \triangle_pitch_slope, \linear,
     \triangle_filter_moddepth, 3,
     \triangle_filter_rq, 0.6,
@@ -432,19 +452,21 @@ SynthDef(\Claves,
 )
 
 (
+var rel = 0.30;
 ~claves.stop();
 ~claves = Pbind(
     \instrument, \Claves,
     \att_times,    [[0.00, 0.00, 0.00, 0.00, 0.00]],
-    \rel_times,    [[0.05, 0.30, 0.15, 0.15, 0.15]],
+    \rel_times,    [[0.05, rel, rel, rel, rel]],
     \amp_slopes,   [[\lin, \lin, \lin, \lin]],
     \pitch_starts, [[100, 400, 200, 800, 400]],
     \pitch_ends,   [[100, 200, 100, 400, 100]],
-    \pitch_slopes, [[\lin, -4, -4, -10, -4]],
-    \fm_moddepths, [3000, 0000],
-    \filter_moddepth, 1,
-    \filter_rq, 0.5,
+    \pitch_slopes, [[\lin, -4, -4, -4, -4]],
+    \fm_moddepths, [3000, 1000],
+    \filter_moddepth, 0.6,
+    \filter_rq, 0.1,
     \snap, 1,
+    \midinote, Pseq([0, 10, 5, 0, 5], inf),
     \dur, Pseq([0.5, 0.75, 0.25, 0.5, 0.25], inf),
 ).play(quant: 1);
 )
