@@ -6,6 +6,7 @@ SynthDef(\Paddd,
     {
         arg
         out = 0,
+        amp = 1,
         fx_bus = -1,
         midinote,
         reltime = 2,
@@ -60,6 +61,7 @@ SynthDef(\Paddd,
             in: signal,
             freq: filter_env
         );
+        signal = signal * amp;
         Out.ar(fx_bus, signal);
         Out.ar(out, signal ! 2);
     }

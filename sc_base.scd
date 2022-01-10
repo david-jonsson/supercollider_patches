@@ -10,9 +10,8 @@ SynthDef(\Base,
         amp = 1,
         att_time = 0.01,
         rel_time = 0.200,
-        triangle_amp_slope = 1,
-        triangles_pitch_offsets = #[0, 3, 7, 10, 12],
-        noise_amp_slope = 1,
+        amp_slope = 1,
+        harm_amps = #[1, 1, 1, 1, 1],
         filter_pitch_start = 50,
         filter_pitch_end = 20,
         filter_pitch_slope = \linear,
@@ -22,57 +21,38 @@ SynthDef(\Base,
 
 
         var
-        noise_amp_env,
-        triangle_amp_env,
+        amp_env,
         filter_env,
-        triangles = Array.newClear(indexedSize: 5),
-        signal,
-        triangle = 0,
+        oscillators = Array.newClear(indexedSize: 5),
+        signal = 0,
         noise;
 
+
         /*
-         * Noise
+         * Additive part
          */
-        noise_amp_env   = EnvGen.kr
+        amp_env = EnvGen.kr
         (
             Env
             (
-                [1, 0],
-                [rel_time],
-                noise_amp_slope
-            ),
-            doneAction: Done.freeSelf
-        );
-
-        noise = BrownNoise.ar() * noise_amp_env;
-
-
-        /*
-         * Triangle
-         */
-        triangle_amp_env = EnvGen.kr
-        (
-            Env
-            (
-                [1, 0],
-                [rel_time],
-                triangle_amp_slope
+                [0, 1, 0],
+                [att_time, rel_time],
+                amp_slope
             ),
             doneAction: Done.freeSelf
         );
         5.do
         ({
             arg i;
-            triangles[i] = LFTri.ar
+            oscillators[i] = SinOsc.ar
             (
-                freq: (midinote + triangles_pitch_offsets[i]).midicps,
-                iphase: 0,
-                mul: triangle_amp_env * 1/5
+                freq: (midinote.midicps) * ((i + 1) * 1.0),
+                // phase: 0,
+                mul: amp_env * harm_amps[i]
             );
-            triangle = triangle + triangles[i];
-
+            signal = signal + oscillators[i];
         });
-        signal = triangle + (noise * snap);
+        signal = signal / 5;
 
         /*
          * Filter
@@ -82,17 +62,17 @@ SynthDef(\Base,
             Env
             (
                 [filter_pitch_start, filter_pitch_end],
-                [rel_time],
+                [rel_time + att_time],
                 filter_pitch_slope
             ),
             doneAction: Done.freeSelf
         );
-        signal = BLowPass.ar
+/*        signal = BLowPass.ar
         (
             in: signal,
             freq: filter_env * filter_moddepth,
             rq: filter_rq
-        );
+        );*/
         signal = signal * amp;
         Out.ar(out, signal ! 2);
     }
