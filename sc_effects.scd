@@ -30,3 +30,34 @@ SynthDef(\PPDelay,
     }
 ).add();
 )
+
+/*
+ * Reverb
+ */
+(
+SynthDef(\Reverb,
+    {
+        arg
+        out    = 0,
+        fx_bus = -1,
+        mix    = 0.33,
+        room   = 0.5,
+        damp   = 0.5;
+
+        var
+        input = In.ar(fx_bus);
+
+        Out.ar
+        (
+            out,
+            FreeVerb.ar
+            (
+                input ! 2,
+                mix,
+                room,
+                damp
+            )
+        )
+    }
+).add();
+)

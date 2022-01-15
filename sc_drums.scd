@@ -13,8 +13,8 @@ SynthDef(\Kick,
         pitch_start = 200,
         pitch_end = 100,
         pitch_slope = -4,
-        filter_moddepth = 1;
-        // filter_rq = 1;
+        filter_moddepth = 1,
+        filter_rq = 1;
 
         var
         amp_env,
@@ -28,17 +28,24 @@ SynthDef(\Kick,
             doneAction: Done.freeSelf
         );
 
-        signal = LFTri.ar
+        signal = SinOsc.ar
         (
             freq: pitch_env,
             iphase: 0,
-            mul: amp_env
+            mul: amp_env * 0.5
         );
-        signal = LPF.ar
+
+        signal = signal + LFTri.ar
+        (
+            freq: pitch_env,
+            iphase: 0,
+            mul: amp_env  * 0.5
+        );
+        signal = BLowPass.ar
         (
             in: signal,
             freq: pitch_env * filter_moddepth,
-            // rq: filter_rq
+            rq: filter_rq
         );
         signal = signal * amp;
         Out.ar(out, signal ! 2);
@@ -90,23 +97,7 @@ SynthDef(\Snare,
             )
         );
         noise = BrownNoise.ar() * noise_amp_env * snap;
-/*        noise_pitch_env = EnvGen.kr
-        (
-            Env
-            (
-                [0, 0, 1, 0,],
-                [0.04, 0.07, 0.2],
-                [\lin, -3, \lin],
-            )
-            doneAction: Done.freeSelf
-        );
-        noise = BLowPass.ar
-        (
-            in: BrownNoise.ar(),
-            freq: noise_pitch_env * noise_filter_moddepth,
-            rq: noise_filter_rq,
-            mul: noise_amp_env * snap
-        );*/
+
 
         /*
          * Triangle
@@ -156,9 +147,9 @@ SynthDef(\Snare,
 
 
 /*
- *  Toms
+ *  FMToms
  */
-SynthDef(\Toms,
+SynthDef(\TomsFM,
     {
         arg
         out = 0,
@@ -282,13 +273,129 @@ SynthDef(\Toms,
         Out.ar(out, signal ! 2);
     }
 ).add();
+
+
+/*
+ *  Toms
+ */
+SynthDef(\Toms909,
+    {
+        arg
+        out = 0,
+        amp = 1,
+        midinote,
+        amps         = #[0.5, 0,5],
+        att_times =    #[0.01, 0.01, 0.01, 0.01, 0.01],
+        rel_times =    #[0.20, 0.20, 0.20, 0.20, 0.20],
+        pitch_starts = #[200, 300, 100, 100, 100],
+        pitch_ends =   #[100, 100, 100, 100, 100],
+        pitch_slopes = #[\lin, \lin, \lin, \lin, \lin],
+        filter_moddepth = 1,
+        filter_rq = 1,
+        snap = 0.5,
+        release;
+
+        var
+        sine_amp_envs = Array.newClear(indexedSize: 3),
+        pulse_amp_envs = Array.newClear(indexedSize: 3),
+        noise_amp_env,
+        signal_amp_env,
+        morph_env,
+        signal = 0,
+        noise = 0,
+        pitch_envs = Array.newClear(indexedSize: 5),
+        oscillators = Array.newClear(indexedSize: 5);
+
+
+        /*
+         * Noise
+         */
+        noise_amp_env = EnvGen.kr(Env.perc(0, rel_times[2]));
+        morph_env = EnvGen.kr(Env.linen(releaseTime: release, curve: \lin));
+        signal_amp_env = EnvGen.kr(Env.perc(0, release));
+        noise = WhiteNoise.ar() * noise_amp_env * snap;
+
+
+        /*perc
+         * Oscilators
+         */
+        2.do
+        ({
+            arg i;
+            pulse_amp_envs[i] = EnvGen.kr
+            (
+                Env
+                (
+                    [1, 0, 0],
+                    [rel_times[i], release],
+                    \lin
+                ),
+                doneAction: Done.freeSelf
+            );
+            sine_amp_envs[i] = EnvGen.kr
+            (
+                Env
+                (
+                    [1, 0, 0],
+                    [rel_times[i], release],
+                    \lin
+                ),
+                doneAction: Done.freeSelf
+            );
+            pitch_envs[i] = EnvGen.kr
+            (
+                Env
+                (
+                    [
+                        (pitch_starts[i] + midinote).midicps,
+                        (pitch_ends[i] + midinote).midicps
+                    ],
+                    [rel_times[i]],
+                    pitch_slopes[i]
+                ),
+                doneAction: Done.freeSelf
+            );
+            oscillators[i] = SinOsc.ar
+            (
+                freq: pitch_envs[i],
+                mul: sine_amp_envs[i] * amps[i]  * 0.7
+            );
+
+            oscillators[i] = oscillators[i] + LFPulse.ar
+            (
+                freq: pitch_envs[i],
+                mul: pulse_amp_envs[i] * amps[i] * morph_env * 0.3
+            );
+
+            signal = signal + oscillators[i];
+        });
+        signal = signal + noise;
+
+
+        /*
+         * Filter
+         */
+        pitch_envs[4] = EnvGen.kr
+        (
+            Env
+            (
+                [
+                    (pitch_starts[4] + midinote).midicps,
+                    (pitch_ends[4] + midinote).midicps
+                ],
+                [rel_times[4]],
+                pitch_slopes[4]
+            ),
+            doneAction: Done.freeSelf
+        );
+        signal = BLowPass.ar
+        (
+            in: signal,
+            freq: pitch_envs[4] * filter_moddepth,
+            rq: filter_rq
+        );
+        signal = signal * signal_amp_env;
+        Out.ar(out, signal ! 2);
+    }
+).add();
 )
-
-
-
-
-
-
-
-
-
